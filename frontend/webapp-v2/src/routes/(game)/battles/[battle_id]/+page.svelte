@@ -200,7 +200,7 @@
 
   // Clear selected log when agent changes
   $effect(() => {
-    if (openAgents.size > 0) {
+    if (openAgents.size === 0) {
       openLogs = new Set();
     }
   });
@@ -467,6 +467,12 @@
         }
       }
       
+      // Open all agent groups by default so log entries are visible initially
+      {
+        const initialGroups = getChronologicalAgentGroups();
+        openAgents = new Set(initialGroups.map((g: any) => g.groupId));
+      }
+      
       // Connect to WebSocket for real-time updates
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/battles`;
@@ -488,40 +494,49 @@
             const newLength = newBattle.interact_history.length;
             
             if (newLength > oldLength) {
-              // New log entries added - auto-expand the latest
-              const newEntries = newBattle.interact_history.slice(oldLength);
-              
-              // Close all currently open agents and logs
-              openAgents = new Set();
-              openLogs = new Set();
-              closingAgents = new Set();
-              closingLogs = new Set();
-              
-              // Find the agent group for the latest entry
-              const latestEntry = newEntries[newEntries.length - 1];
-              const agentGroups = getChronologicalAgentGroups();
-                             const latestAgentGroup = agentGroups.find(group => 
-                 group.entries.some((entry: any) => 
-                   entry.timestamp === latestEntry.timestamp && 
-                   entry.message === latestEntry.message
-                 )
-               );
-              
-              if (latestAgentGroup) {
-                // Open the agent group for the latest entry
-                openAgents = new Set([latestAgentGroup.groupId]);
+            // New log entries added - auto-expand the latest without collapsing existing opens
+            const newEntries = newBattle.interact_history.slice(oldLength);
+            
+            // Find the agent group for the latest entry
+            const latestEntry = newEntries[newEntries.length - 1];
+            const agentGroups = (() => {
+              if (!newBattle?.interact_history) return [];
+              const groups: any[] = [];
+              let currentAgent: any = null;
+              let currentGroup: any = null;
+              for (const [index, entry] of newBattle.interact_history.entries()) {
+                if (entry.reported_by !== currentAgent) {
+                  if (currentGroup) groups.push(currentGroup);
+                  currentAgent = entry.reported_by;
+                  currentGroup = {
+                    agent: currentAgent,
+                    entries: [{ ...entry, logNumber: index + 1 }],
+                    groupId: `group-${groups.length}`
+                  };
+                } else {
+                  currentGroup?.entries.push({ ...entry, logNumber: index + 1 });
+                }
+              }
+              if (currentGroup) groups.push(currentGroup);
+              return groups;
+            })();
+                           const latestAgentGroup = agentGroups.find(group => 
+                group.entries.some((entry: any) => 
+                  entry.timestamp === latestEntry.timestamp && 
+                  entry.message === latestEntry.message
+                )
+              );
+            
+            if (latestAgentGroup) {
+                // Ensure the agent group for the latest entry is open (preserve existing opens)
+                const currentOpenAgents = new Set(openAgents);
+                currentOpenAgents.add(latestAgentGroup.groupId);
+                openAgents = currentOpenAgents;
                 
-                // Open the specific log entry
+                // Keep log entries collapsed by default; user can expand as needed
                 const latestLogEntry = latestAgentGroup.entries[latestAgentGroup.entries.length - 1];
                 const logId = `${latestAgentGroup.groupId}-log${latestLogEntry.logNumber}`;
-                openLogs = new Set([logId]);
-                
-                // Auto-open message and detail sections for the new log
-                const messageSectionId = `${logId}-message`;
-                const detailSectionId = `${logId}-detail`;
-                openLogSections = new Set([messageSectionId, detailSectionId]);
-                
-                console.log('Auto-expanded agent:', latestAgentGroup.agent, 'and log:', logId);
+                console.log('Auto-expanded agent:', latestAgentGroup.agent, 'latest log header:', logId);
               }
             }
           }
@@ -830,14 +845,6 @@
                               newOpenLogs.add(logId);
                               openLogs = newOpenLogs;
                               
-                              // Auto-open message and detail sections for this log
-                              const messageSectionId = `${logId}-message`;
-                              const detailSectionId = `${logId}-detail`;
-                              const newOpenSections = new Set(openLogSections);
-                              newOpenSections.add(messageSectionId);
-                              newOpenSections.add(detailSectionId);
-                              openLogSections = newOpenSections;
-                              
                               // Create edge between agents involved in this log
                               const sourceAgentId = getAgentIdFromReportedBy(group.agent);
                               let targetAgentId = null;
@@ -869,7 +876,7 @@
                         </button>
                         <span class="text-xs text-muted-foreground font-mono min-w-[3ch]">#{entry.logNumber}</span>
                         <span class="text-foreground text-sm flex-1 truncate">
-                          {entry.message.length > 60 ? entry.message.substring(0, 60) + '...' : entry.message}
+                          {entry.message.length > 200 ? entry.message.substring(0, 200) + '...' : entry.message}
                         </span>
                         <span class="text-xs text-muted-foreground">
                           {new Date(entry.timestamp).toLocaleTimeString()}
