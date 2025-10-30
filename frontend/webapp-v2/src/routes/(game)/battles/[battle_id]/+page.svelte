@@ -200,7 +200,7 @@
 
   // Clear selected log when agent changes
   $effect(() => {
-    if (openAgents.size === 0) {
+    if (openAgents.size > 0) {
       openLogs = new Set();
     }
   });
@@ -427,6 +427,31 @@
     }
   }
   
+  function expandAllLogs() {
+    if (!battle?.interact_history) return;
+    const groups = getChronologicalAgentGroups();
+    const allAgents = new Set<string>();
+    const allLogs = new Set<string>();
+    const allSections = new Set<string>();
+    for (const group of groups) {
+      allAgents.add(group.groupId);
+      for (const entry of group.entries) {
+        const logId = `${group.groupId}-log${entry.logNumber}`;
+        allLogs.add(logId);
+        allSections.add(`${logId}-message`);
+        allSections.add(`${logId}-detail`);
+        if (entry.markdown_content) allSections.add(`${logId}-markdown`);
+        if (entry.winner) allSections.add(`${logId}-winner`);
+      }
+    }
+    openAgents = allAgents;
+    openLogs = allLogs;
+    openLogSections = allSections;
+    closingAgents = new Set();
+    closingLogs = new Set();
+    closingLogSections = new Set();
+  }
+
   onMount(async () => {
     loading = true;
     error = '';
@@ -467,12 +492,6 @@
         }
       }
       
-      // Open all agent groups by default so log entries are visible initially
-      {
-        const initialGroups = getChronologicalAgentGroups();
-        openAgents = new Set(initialGroups.map((g: any) => g.groupId));
-      }
-      
       // Connect to WebSocket for real-time updates
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/battles`;
@@ -488,61 +507,15 @@
           const oldBattle = battle;
           const newBattle = { ...data.battle };
           
-          // Check if there are new log entries
-          if (newBattle.interact_history && oldBattle?.interact_history) {
-            const oldLength = oldBattle.interact_history.length;
-            const newLength = newBattle.interact_history.length;
-            
-            if (newLength > oldLength) {
-            // New log entries added - auto-expand the latest without collapsing existing opens
-            const newEntries = newBattle.interact_history.slice(oldLength);
-            
-            // Find the agent group for the latest entry
-            const latestEntry = newEntries[newEntries.length - 1];
-            const agentGroups = (() => {
-              if (!newBattle?.interact_history) return [];
-              const groups: any[] = [];
-              let currentAgent: any = null;
-              let currentGroup: any = null;
-              for (const [index, entry] of newBattle.interact_history.entries()) {
-                if (entry.reported_by !== currentAgent) {
-                  if (currentGroup) groups.push(currentGroup);
-                  currentAgent = entry.reported_by;
-                  currentGroup = {
-                    agent: currentAgent,
-                    entries: [{ ...entry, logNumber: index + 1 }],
-                    groupId: `group-${groups.length}`
-                  };
-                } else {
-                  currentGroup?.entries.push({ ...entry, logNumber: index + 1 });
-                }
-              }
-              if (currentGroup) groups.push(currentGroup);
-              return groups;
-            })();
-                           const latestAgentGroup = agentGroups.find(group => 
-                group.entries.some((entry: any) => 
-                  entry.timestamp === latestEntry.timestamp && 
-                  entry.message === latestEntry.message
-                )
-              );
-            
-            if (latestAgentGroup) {
-                // Ensure the agent group for the latest entry is open (preserve existing opens)
-                const currentOpenAgents = new Set(openAgents);
-                currentOpenAgents.add(latestAgentGroup.groupId);
-                openAgents = currentOpenAgents;
-                
-                // Keep log entries collapsed by default; user can expand as needed
-                const latestLogEntry = latestAgentGroup.entries[latestAgentGroup.entries.length - 1];
-                const logId = `${latestAgentGroup.groupId}-log${latestLogEntry.logNumber}`;
-                console.log('Auto-expanded agent:', latestAgentGroup.agent, 'latest log header:', logId);
-              }
-            }
+          // Always keep all logs expanded on any update
+          if (newBattle.interact_history) {
+            battle = newBattle;
+            expandAllLogs();
+          } else {
+            battle = newBattle;
           }
           
-          // Update battle data
-          battle = newBattle;
+          // Update battle data (already set above)
 
           // Handle asciinema tabs for new entries
           if (battle?.interact_history && Array.isArray(battle.interact_history)) {
@@ -579,6 +552,7 @@
       console.error(err);
     } finally {
       loading = false;
+      expandAllLogs();
     }
   });
   
@@ -754,33 +728,9 @@
                 <button 
                   class="p-1 hover:bg-muted rounded transition-colors"
                   onclick={() => {
-                    // Prevent multiple rapid clicks
-                    if (closingAgents.has(group.groupId)) return;
-                    
                     const newOpenAgents = new Set(openAgents);
-                    const newClosingAgents = new Set(closingAgents);
-                    
-                    if (newOpenAgents.has(group.groupId)) {
-                      // Start closing animation
-                      newClosingAgents.add(group.groupId);
-                      closingAgents = newClosingAgents;
-                      
-                      // Remove from open after animation
-                      setTimeout(() => {
-                        const currentOpenAgents = new Set(openAgents);
-                        const currentClosingAgents = new Set(closingAgents);
-                        
-                        currentOpenAgents.delete(group.groupId);
-                        currentClosingAgents.delete(group.groupId);
-                        
-                        openAgents = currentOpenAgents;
-                        closingAgents = currentClosingAgents;
-                      }, 200);
-                    } else {
-                      // Open immediately
-                      newOpenAgents.add(group.groupId);
-                      openAgents = newOpenAgents;
-                    }
+                    newOpenAgents.add(group.groupId);
+                    openAgents = newOpenAgents;
                   }}
                 >
                   {#if openAgents.has(group.groupId)}
@@ -817,54 +767,36 @@
                       <div class="flex items-center gap-2 w-full p-2">
                                            <button 
                           class="p-1 hover:bg-muted rounded transition-colors"
-                    onclick={() => {
-                            // Prevent multiple rapid clicks
-                            if (closingLogs.has(logId)) return;
-                            
+                  onclick={() => {
                             const newOpenLogs = new Set(openLogs);
-                            const newClosingLogs = new Set(closingLogs);
+                            newOpenLogs.add(logId);
+                            openLogs = newOpenLogs;
+                            const messageSectionId = `${logId}-message`;
+                            const detailSectionId = `${logId}-detail`;
+                            const newOpenSections = new Set(openLogSections);
+                            newOpenSections.add(messageSectionId);
+                            newOpenSections.add(detailSectionId);
+                            openLogSections = newOpenSections;
                             
-                            if (newOpenLogs.has(logId)) {
-                              // Start closing animation
-                              newClosingLogs.add(logId);
-                              closingLogs = newClosingLogs;
-                              
-                              // Remove from open after animation
-                              setTimeout(() => {
-                                const currentOpenLogs = new Set(openLogs);
-                                const currentClosingLogs = new Set(closingLogs);
-                                
-                                currentOpenLogs.delete(logId);
-                                currentClosingLogs.delete(logId);
-                                
-                                openLogs = currentOpenLogs;
-                                closingLogs = currentClosingLogs;
-                              }, 200);
-                      } else {
-                              // Open immediately
-                              newOpenLogs.add(logId);
-                              openLogs = newOpenLogs;
-                              
-                              // Create edge between agents involved in this log
-                              const sourceAgentId = getAgentIdFromReportedBy(group.agent);
-                              let targetAgentId = null;
-                              
-                              // Try to find target agent from log data
-                              if (entry.detail?.target_agent) {
-                                targetAgentId = getAgentIdFromReportedBy(entry.detail.target_agent);
-                              } else if (entry.detail?.opponent) {
-                                targetAgentId = getAgentIdFromReportedBy(entry.detail.opponent);
-                              } else if (battle.green_agent_id && sourceAgentId !== battle.green_agent_id) {
-                                // If source is not green agent, connect to green agent
-                                targetAgentId = battle.green_agent_id;
-                              } else if (battle.opponents && battle.opponents.length > 0) {
-                                // If source is green agent, connect to first opponent
-                                targetAgentId = battle.opponents[0].agent_id;
-                              }
-                              
-                              if (targetAgentId && sourceAgentId !== targetAgentId) {
-                                createLogEdge(sourceAgentId, targetAgentId, entry);
-                              }
+                            // Create edge between agents involved in this log
+                            const sourceAgentId = getAgentIdFromReportedBy(group.agent);
+                            let targetAgentId = null;
+                            
+                            // Try to find target agent from log data
+                            if (entry.detail?.target_agent) {
+                              targetAgentId = getAgentIdFromReportedBy(entry.detail.target_agent);
+                            } else if (entry.detail?.opponent) {
+                              targetAgentId = getAgentIdFromReportedBy(entry.detail.opponent);
+                            } else if (battle.green_agent_id && sourceAgentId !== battle.green_agent_id) {
+                              // If source is not green agent, connect to green agent
+                              targetAgentId = battle.green_agent_id;
+                            } else if (battle.opponents && battle.opponents.length > 0) {
+                              // If source is green agent, connect to first opponent
+                              targetAgentId = battle.opponents[0].agent_id;
+                            }
+                            
+                            if (targetAgentId && sourceAgentId !== targetAgentId) {
+                              createLogEdge(sourceAgentId, targetAgentId, entry);
                             }
                           }}
                         >
@@ -876,7 +808,7 @@
                         </button>
                         <span class="text-xs text-muted-foreground font-mono min-w-[3ch]">#{entry.logNumber}</span>
                         <span class="text-foreground text-sm flex-1 truncate">
-                          {entry.message.length > 200 ? entry.message.substring(0, 200) + '...' : entry.message}
+                          {entry.message.length > 60 ? entry.message.substring(0, 60) + '...' : entry.message}
                         </span>
                         <span class="text-xs text-muted-foreground">
                           {new Date(entry.timestamp).toLocaleTimeString()}
@@ -895,29 +827,9 @@
                                                             <button 
                                 class="p-1 hover:bg-muted rounded transition-colors"
                                 onclick={() => {
-                                  if (closingLogSections.has(messageSectionId)) return;
-                                  
                                   const newOpenSections = new Set(openLogSections);
-                                  const newClosingSections = new Set(closingLogSections);
-                                  
-                                  if (newOpenSections.has(messageSectionId)) {
-                                    newClosingSections.add(messageSectionId);
-                                    closingLogSections = newClosingSections;
-                                    
-                                    setTimeout(() => {
-                                      const currentOpenSections = new Set(openLogSections);
-                                      const currentClosingSections = new Set(closingLogSections);
-                                        
-                                      currentOpenSections.delete(messageSectionId);
-                                      currentClosingSections.delete(messageSectionId);
-                                        
-                                      openLogSections = currentOpenSections;
-                                      closingLogSections = currentClosingSections;
-                                    }, 200);
-                                  } else {
-                                    newOpenSections.add(messageSectionId);
-                                    openLogSections = newOpenSections;
-                                  }
+                                  newOpenSections.add(messageSectionId);
+                                  openLogSections = newOpenSections;
                                 }}
                               >
                                 {#if openLogSections.has(messageSectionId)}
@@ -942,29 +854,9 @@
                                 <button 
                                   class="p-1 hover:bg-muted rounded transition-colors"
                                   onclick={() => {
-                                    if (closingLogSections.has(detailSectionId)) return;
-                                    
                                     const newOpenSections = new Set(openLogSections);
-                                    const newClosingSections = new Set(closingLogSections);
-                                    
-                                    if (newOpenSections.has(detailSectionId)) {
-                                      newClosingSections.add(detailSectionId);
-                                      closingLogSections = newClosingSections;
-                                      
-                                      setTimeout(() => {
-                                        const currentOpenSections = new Set(openLogSections);
-                                        const currentClosingSections = new Set(closingLogSections);
-                                        
-                                        currentOpenSections.delete(detailSectionId);
-                                        currentClosingSections.delete(detailSectionId);
-                                        
-                                        openLogSections = currentOpenSections;
-                                        closingLogSections = currentClosingSections;
-                                      }, 200);
-                                    } else {
-                                      newOpenSections.add(detailSectionId);
-                                      openLogSections = newOpenSections;
-                                    }
+                                    newOpenSections.add(detailSectionId);
+                                    openLogSections = newOpenSections;
                                   }}
                                 >
                                   {#if openLogSections.has(detailSectionId)}
@@ -990,29 +882,9 @@
                                 <button 
                                   class="p-1 hover:bg-muted rounded transition-colors"
                                   onclick={() => {
-                                    if (closingLogSections.has(markdownSectionId)) return;
-                                    
                                     const newOpenSections = new Set(openLogSections);
-                                    const newClosingSections = new Set(closingLogSections);
-                                    
-                                    if (newOpenSections.has(markdownSectionId)) {
-                                      newClosingSections.add(markdownSectionId);
-                                      closingLogSections = newClosingSections;
-                                      
-                                      setTimeout(() => {
-                                        const currentOpenSections = new Set(openLogSections);
-                                        const currentClosingSections = new Set(closingLogSections);
-                                        
-                                        currentOpenSections.delete(markdownSectionId);
-                                        currentClosingSections.delete(markdownSectionId);
-                                        
-                                        openLogSections = currentOpenSections;
-                                        closingLogSections = currentClosingSections;
-                                      }, 200);
-                                    } else {
-                                      newOpenSections.add(markdownSectionId);
-                                      openLogSections = newOpenSections;
-                                    }
+                                    newOpenSections.add(markdownSectionId);
+                                    openLogSections = newOpenSections;
                                   }}
                                 >
                                   {#if openLogSections.has(markdownSectionId)}
@@ -1040,29 +912,9 @@
                                 <button 
                                   class="p-1 hover:bg-muted rounded transition-colors"
                                   onclick={() => {
-                                    if (closingLogSections.has(winnerSectionId)) return;
-                                    
                                     const newOpenSections = new Set(openLogSections);
-                                    const newClosingSections = new Set(closingLogSections);
-                                    
-                                    if (newOpenSections.has(winnerSectionId)) {
-                                      newClosingSections.add(winnerSectionId);
-                                      closingLogSections = newClosingSections;
-                                      
-                                      setTimeout(() => {
-                                        const currentOpenSections = new Set(openLogSections);
-                                        const currentClosingSections = new Set(closingLogSections);
-                                        
-                                        currentOpenSections.delete(winnerSectionId);
-                                        currentClosingSections.delete(winnerSectionId);
-                                        
-                                        openLogSections = currentOpenSections;
-                                        closingLogSections = currentClosingSections;
-                                      }, 200);
-                                    } else {
-                                      newOpenSections.add(winnerSectionId);
-                                      openLogSections = newOpenSections;
-                                    }
+                                    newOpenSections.add(winnerSectionId);
+                                    openLogSections = newOpenSections;
                                   }}
                                 >
                                   {#if openLogSections.has(winnerSectionId)}
