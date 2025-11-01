@@ -64,6 +64,12 @@
   let selectedLogEdge = $state<string | null>(null);
   let openLogSections = $state<Set<string>>(new Set());
   let closingLogSections = $state<Set<string>>(new Set());
+  type ExpansionMode = 'collapsed' | 'parent' | 'parent_and_child';
+  let expansionMode = $state<ExpansionMode>('parent_and_child');
+  // Track which agents/logs/sections have been auto-expanded already
+  let initializedAgentGroupIds = $state(new Set<string>());
+  let initializedLogIds = $state(new Set<string>());
+  let initializedLogSectionIds = $state(new Set<string>());
   
   let battleInProgress = $derived(battle ? isBattleInProgress() : false);
   
@@ -104,6 +110,124 @@
     }
     
     return groups;
+  }
+
+  function resetLogExpansionState() {
+    openAgents = new Set();
+    closingAgents = new Set();
+    openLogs = new Set();
+    closingLogs = new Set();
+    openLogSections = new Set();
+    closingLogSections = new Set();
+    initializedAgentGroupIds = new Set();
+    initializedLogIds = new Set();
+    initializedLogSectionIds = new Set();
+  }
+
+  function ensureLogsExpandedByDefault() {
+    if (!battle?.interact_history || battle.interact_history.length === 0) {
+      return;
+    }
+
+    const mode = expansionMode;
+    const agentGroups = getChronologicalAgentGroups();
+
+    const newOpenAgents = new Set(openAgents);
+    const newClosingAgents = new Set(closingAgents);
+    const newInitializedAgentGroupIds = new Set(initializedAgentGroupIds);
+
+    const newOpenLogs = new Set(openLogs);
+    const newClosingLogs = new Set(closingLogs);
+    const newInitializedLogIds = new Set(initializedLogIds);
+
+    const newOpenSections = new Set(openLogSections);
+    const newClosingSections = new Set(closingLogSections);
+    const newInitializedSectionIds = new Set(initializedLogSectionIds);
+
+    const shouldAutoOpenAgents = mode !== 'collapsed';
+    const shouldAutoOpenLogs = mode === 'parent_and_child';
+
+    for (const group of agentGroups) {
+      if (shouldAutoOpenAgents && !newInitializedAgentGroupIds.has(group.groupId)) {
+        newOpenAgents.add(group.groupId);
+        newInitializedAgentGroupIds.add(group.groupId);
+      }
+      if (shouldAutoOpenAgents) {
+        newClosingAgents.delete(group.groupId);
+      }
+
+      for (const entry of group.entries as any[]) {
+        const logEntry = entry as any;
+        if (logEntry?.logNumber === undefined || logEntry?.logNumber === null) {
+          continue;
+        }
+
+        const logId = `${group.groupId}-log${logEntry.logNumber}`;
+
+        if (shouldAutoOpenLogs && !newInitializedLogIds.has(logId)) {
+          newOpenLogs.add(logId);
+          newInitializedLogIds.add(logId);
+        }
+        if (shouldAutoOpenLogs) {
+          newClosingLogs.delete(logId);
+
+          const messageSectionId = `${logId}-message`;
+          if (!newInitializedSectionIds.has(messageSectionId)) {
+            newOpenSections.add(messageSectionId);
+            newInitializedSectionIds.add(messageSectionId);
+          }
+          newClosingSections.delete(messageSectionId);
+
+          if (logEntry?.detail) {
+            const detailSectionId = `${logId}-detail`;
+            if (!newInitializedSectionIds.has(detailSectionId)) {
+              newOpenSections.add(detailSectionId);
+              newInitializedSectionIds.add(detailSectionId);
+            }
+            newClosingSections.delete(detailSectionId);
+          }
+
+          if (logEntry?.markdown_content) {
+            const markdownSectionId = `${logId}-markdown`;
+            if (!newInitializedSectionIds.has(markdownSectionId)) {
+              newOpenSections.add(markdownSectionId);
+              newInitializedSectionIds.add(markdownSectionId);
+            }
+            newClosingSections.delete(markdownSectionId);
+          }
+
+          if (logEntry?.winner) {
+            const winnerSectionId = `${logId}-winner`;
+            if (!newInitializedSectionIds.has(winnerSectionId)) {
+              newOpenSections.add(winnerSectionId);
+              newInitializedSectionIds.add(winnerSectionId);
+            }
+            newClosingSections.delete(winnerSectionId);
+          }
+        }
+      }
+    }
+
+    openAgents = newOpenAgents;
+    closingAgents = newClosingAgents;
+    initializedAgentGroupIds = newInitializedAgentGroupIds;
+
+    openLogs = newOpenLogs;
+    closingLogs = newClosingLogs;
+    initializedLogIds = newInitializedLogIds;
+
+    openLogSections = newOpenSections;
+    closingLogSections = newClosingSections;
+    initializedLogSectionIds = newInitializedSectionIds;
+  }
+
+  function setExpansionMode(mode: ExpansionMode) {
+    if (mode !== 'collapsed' && mode !== 'parent' && mode !== 'parent_and_child') {
+      return;
+    }
+    expansionMode = mode;
+    resetLogExpansionState();
+    ensureLogsExpandedByDefault();
   }
 
   // Create Svelte Flow nodes and edges from battle data
@@ -197,14 +321,6 @@
       createSvelteFlowData();
     }
   });
-
-  // Clear selected log when agent changes
-  $effect(() => {
-    if (openAgents.size > 0) {
-      openLogs = new Set();
-    }
-  });
-
   async function fetchAgentName(agentId: string): Promise<string> {
     try {
       const res = await fetch(`/api/agents/${agentId}`);
@@ -467,12 +583,16 @@
       }
       battle = await res.json();
 
+      resetLogExpansionState();
+
       if (battle?.interact_history && Array.isArray(battle.interact_history)) {
         entryActiveTabs = {};
         battle.interact_history.forEach((entry: any, idx: number) => {
           entryActiveTabs[idx] = entry.asciinema_url ? 'asciinema' : 'logs';
         });
       }
+
+      ensureLogsExpandedByDefault();
       
       // Fetch agent names
       if (battle.green_agent_id) {
@@ -507,15 +627,18 @@
           const oldBattle = battle;
           const newBattle = { ...data.battle };
           
-          // Always keep all logs expanded on any update
-          if (newBattle.interact_history) {
-            battle = newBattle;
-            expandAllLogs();
-          } else {
-            battle = newBattle;
+          const oldLength = oldBattle?.interact_history?.length ?? 0;
+          const newLength = newBattle.interact_history?.length ?? 0;
+          const battleChanged = !oldBattle || oldBattle.battle_id !== newBattle.battle_id || newLength < oldLength;
+
+          if (battleChanged) {
+            resetLogExpansionState();
           }
-          
-          // Update battle data (already set above)
+
+          // Update battle data
+          battle = newBattle;
+
+          ensureLogsExpandedByDefault();
 
           // Handle asciinema tabs for new entries
           if (battle?.interact_history && Array.isArray(battle.interact_history)) {
@@ -710,15 +833,27 @@
       <div class="mt-8">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-semibold text-foreground">Battle Logs</h2>
-          <a 
-            href="https://github.com/agentbeats/agentbeats" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="flex items-center justify-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted border border-border hover:border-border rounded-md transition-colors"
-            title="Download from GitHub"
-          >
-            <DownloadIcon class="w-3.5 h-3.5" />
-          </a>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-muted-foreground uppercase tracking-wide">Expand</span>
+            <select
+              class="text-sm px-2 py-1 border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              value={expansionMode}
+              onchange={(event) => setExpansionMode((event.currentTarget as HTMLSelectElement).value as ExpansionMode)}
+            >
+              <option value="collapsed">Collapsed</option>
+              <option value="parent">Expand only message</option>
+              <option value="parent_and_child">Expand message and detail</option>
+            </select>
+            <a 
+              href="https://github.com/agentbeats/agentbeats" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="flex items-center justify-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted border border-border hover:border-border rounded-md transition-colors"
+              title="Download from GitHub"
+            >
+              <DownloadIcon class="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
         <div class="space-y-6 -ml-2">
           {#each agentGroups as group}
