@@ -492,14 +492,14 @@ def main():
     load_scenario_parser.add_argument("--launch-mode", choices=["tmux", "separate", "current"], 
                                 default="", help="Launching terminal; Will override scenario.toml's settings!")
     load_scenario_parser.add_argument("--register_agents", action="store_true", default=False, help="Register agents to backend (default: false)")
-    load_scenario_parser.add_argument("--backend", help="Backend URL", default="http://localhost:9000")
+    load_scenario_parser.add_argument("--backend", help="Backend URL", default="https://agentbeats.org/api")
 
     # run_scenario command
     run_scenario_parser = sub_parser.add_parser("run_scenario", help="Run a scenario from scenario.toml (requires frontend and backend to be running; eqivalant to `ab load_scenario` + register agent + start battle)")
     run_scenario_parser.add_argument("scenario_root", help="Path to scenario directory")
     run_scenario_parser.add_argument("--launch_mode", choices=["tmux", "separate", "current"],
                                 default="", help="Launching terminal; Will override scenario.toml's settings!")
-    run_scenario_parser.add_argument("--backend", help="Backend URL", default="http://localhost:9000")
+    run_scenario_parser.add_argument("--backend", help="Backend URL", default="https://agentbeats.org/api")
     run_scenario_parser.add_argument("--frontend", help="Frontend URL", default="http://localhost:5173")
 
     # run_backend command

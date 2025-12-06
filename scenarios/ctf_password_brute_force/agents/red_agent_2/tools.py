@@ -73,7 +73,7 @@ def handle_challenge_start(challenge_data: str) -> str:
         # Create BattleContext from the provided data
         battle_context = BattleContext(
             battle_id=battle_context_data.get("battle_id", "ctf_password_brute_force"),
-            backend_url=battle_context_data.get("backend_url", "http://localhost:9000"),
+            backend_url=battle_context_data.get("backend_url", "https://agentbeats.org/api"),
             agent_name=battle_context_data.get("agent_name", "CTF Red Agent (Competitor)")
         )
         

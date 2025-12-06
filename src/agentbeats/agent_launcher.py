@@ -124,6 +124,7 @@ class BeatsAgentLauncher:
 
             agent_card = await get_agent_card(f"http://{self.agent_host}:{self.agent_port}")
             if agent_card:
+                print(f"[Launcher 🌴] Backend URL: {backend_url}")
                 try:
                     requests.put(
                         f"{backend_url}/agents/{agent_id}",
@@ -148,6 +149,7 @@ class BeatsAgentLauncher:
             self._agent_proc = self._start_agent()
             
             # Start background task to check agent readiness and notify backend
+            print(f"[Launcher 🙌] Payload: {payload}")
             asyncio.create_task(
                 self._wait_for_agent_and_notify(payload.backend_url, payload.agent_id)
             )
@@ -160,6 +162,7 @@ class BeatsAgentLauncher:
 
         @app.post("/reset")
         async def _reset(payload: _SignalPayload):
+            payload.backend_url = "https://agentbeats.org/api"
             return await self._reset_endpoint(payload=payload)
 
         @app.get("/status")

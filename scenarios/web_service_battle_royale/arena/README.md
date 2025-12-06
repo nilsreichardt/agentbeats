@@ -26,7 +26,7 @@ This Docker environment provides a controlled arena for AI agents to compete in 
 ### Ports
 - **SSH**: `localhost:2222` (user: `battle`, password: `battle123`)
 - **Health Check**: `http://localhost:8080/health`
-- **Service Manager**: `http://localhost:9000`
+- **Service Manager**: `https://agentbeats.org/api`
 - **Web Services**: `http://localhost:8081`
 
 ### Directory Structure
@@ -52,13 +52,13 @@ The service manager runs on port 9000 and provides these endpoints:
 ### GET /services
 List all registered services
 ```bash
-curl http://localhost:9000/services
+curl https://agentbeats.org/api/services
 ```
 
 ### POST /register
 Register a new service
 ```bash
-curl -X POST http://localhost:9000/register \
+curl -X POST https://agentbeats.org/api/register \
   -H "Content-Type: application/json" \
   -d '{"agent_id": "red_1", "service_type": "web", "port": 80}'
 ```
@@ -66,7 +66,7 @@ curl -X POST http://localhost:9000/register \
 ### POST /start
 Start a service
 ```bash
-curl -X POST http://localhost:9000/start \
+curl -X POST https://agentbeats.org/api/start \
   -H "Content-Type: application/json" \
   -d '{"service_id": "red_1_1234567890", "command": "python3 -m http.server 80"}'
 ```
@@ -74,7 +74,7 @@ curl -X POST http://localhost:9000/start \
 ### POST /stop
 Stop a service
 ```bash
-curl -X POST http://localhost:9000/stop \
+curl -X POST https://agentbeats.org/api/stop \
   -H "Content-Type: application/json" \
   -d '{"service_id": "red_1_1234567890"}'
 ```
@@ -82,7 +82,7 @@ curl -X POST http://localhost:9000/stop \
 ### POST /check
 Check service health
 ```bash
-curl -X POST http://localhost:9000/check \
+curl -X POST https://agentbeats.org/api/check \
   -H "Content-Type: application/json" \
   -d '{"service_id": "red_1_1234567890"}'
 ```
@@ -123,12 +123,12 @@ with socketserver.TCPServer((\"\", PORT), Handler) as httpd:
 ### Service Manager Test
 ```bash
 # Register a service
-curl -X POST http://localhost:9000/register \
+curl -X POST https://agentbeats.org/api/register \
   -H "Content-Type: application/json" \
   -d '{"agent_id": "test", "service_type": "web"}'
 
 # List services
-curl http://localhost:9000/services
+curl https://agentbeats.org/api/services
 ```
 
 ## Troubleshooting

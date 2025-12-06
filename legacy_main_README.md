@@ -139,7 +139,7 @@ python start.py --check
 ```
 
 This will start:
-- **Backend API**: `http://localhost:9000`
+- **Backend API**: `https://agentbeats.org/api`
 - **MCP Server**: `http://localhost:9001`
 - **Frontend Web App**: `http://localhost:5173`
 
@@ -243,24 +243,24 @@ cd scenarios/tensortrust
 
 **Launch Blue Agent (Defender):**
 ```bash
-agentbeats run blue_agent/blue_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9010 --backend http://localhost:9000
+agentbeats run blue_agent/blue_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9010 --backend https://agentbeats.org/api
 ```
 
 **Launch Red Agent (Attacker):**
 ```bash
-agentbeats run red_agent/red_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9020 --backend http://localhost:9000
+agentbeats run red_agent/red_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9020 --backend https://agentbeats.org/api
 ```
 
 **Launch Green Agent (Judge):**
 ```bash
-agentbeats run green_agent/green_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9030 --backend http://localhost:9000 --mcp http://localhost:9001/sse --tool green_agent/tools.py
+agentbeats run green_agent/green_agent_card.toml --launcher_host 0.0.0.0 --launcher_port 9030 --backend https://agentbeats.org/api --mcp http://localhost:9001/sse --tool green_agent/tools.py
 ```
 
 #### Services Overview
 
 Once all services are running, you'll have:
 
-- **Backend API**: `http://localhost:9000`
+- **Backend API**: `https://agentbeats.org/api`
 - **Frontend Web App**: `http://localhost:5173`
 - **MCP Server**: `http://localhost:9001`
 - **Blue Agent**: `http://localhost:9010`

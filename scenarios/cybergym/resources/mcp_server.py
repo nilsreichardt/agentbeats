@@ -44,7 +44,7 @@ server = FastMCP(
     port=9001,
 )
 
-BACKEND_URL = "http://localhost:9000"
+BACKEND_URL = "https://agentbeats.org/api"
 
 DEBUG_MODE = True
 

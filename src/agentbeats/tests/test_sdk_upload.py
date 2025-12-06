@@ -20,7 +20,7 @@ def test_uploads_system():
     print("Testing AgentBeats Uploads System...")
     
     # Test server URL
-    base_url = "http://localhost:9000"
+    base_url = "https://agentbeats.org/api"
     
     try:
         # Test 1: Upload user avatar
@@ -151,7 +151,7 @@ def test_sdk_functionality():
     print("="*60)
     
     # Test server URL
-    ASSET_SERVER_URL = "http://localhost:9000"
+    ASSET_SERVER_URL = "https://agentbeats.org/api"
     
     try:
         # Test 1: Create a test file
@@ -245,7 +245,7 @@ def test_static_assets():
     print("Testing Static Assets...")
     print("="*60)
     
-    base_url = "http://localhost:9000"
+    base_url = "https://agentbeats.org/api"
     
     try:
         # Test 1: Create a test static file

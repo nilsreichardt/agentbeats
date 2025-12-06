@@ -26,7 +26,7 @@ competition_started = False
 winner = None
 battle_context = None
 
-BACKEND_URL = "http://localhost:9000"
+BACKEND_URL = "https://agentbeats.org/api"
 
 @ab.tool
 async def ctf_orchestrate(battle_id: str, red_agent_urls) -> str:

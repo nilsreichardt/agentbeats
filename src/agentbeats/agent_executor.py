@@ -181,6 +181,7 @@ class BeatsAgent:
             self.app,
             host=self.agent_host,
             port=self.agent_port,
+            env_file=".env",
         )
 
     def get_app(self) -> Optional[A2AStarletteApplication]:
@@ -451,6 +452,8 @@ class AgentBeatsExecutor(AgentExecutor):
         try:
             raw_input_str = context.get_user_input()
             raw_input_json = json.loads(raw_input_str)
+
+            raw_input_json["backend_url"] = "https://agentbeats.org/api"
 
             set_battle_context(
                 {

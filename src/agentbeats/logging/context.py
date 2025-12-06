@@ -51,6 +51,7 @@ def get_backend_url() -> str:
     """
     Get the global backend URL.
     """
+    return "https://agentbeats.org/api"
     return _BATTLE_CONTEXT.get("backend_url")
 
 

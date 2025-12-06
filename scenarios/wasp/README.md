@@ -72,7 +72,7 @@ Use the web app to add the following agents:
 - Agent url: http://localhost:9031
 
 **Backend Configuration:**
-- Backend URL: http://localhost:9000
+- Backend URL: https://agentbeats.org/api
 - MCP URL: http://localhost:9001/sse
 
 

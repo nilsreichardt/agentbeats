@@ -36,11 +36,11 @@ SCENARIO_NAME = "your_scenario_name"
 AGENT_COMMANDS = [
     {
         "name": "Your Agent 1",
-        "command": "agentbeats run agent1/config.toml --launcher_host 0.0.0.0 --launcher_port 9040 --backend http://localhost:9000"
+        "command": "agentbeats run agent1/config.toml --launcher_host 0.0.0.0 --launcher_port 9040 --backend https://agentbeats.org/api"
     },
     {
         "name": "Your Agent 2", 
-        "command": "agentbeats run agent2/config.toml --launcher_host 0.0.0.0 --launcher_port 9050 --backend http://localhost:9000"
+        "command": "agentbeats run agent2/config.toml --launcher_host 0.0.0.0 --launcher_port 9050 --backend https://agentbeats.org/api"
     }
     # Add more agents...
 ]

@@ -23,11 +23,11 @@ SCENARIO_NAME = "cybergym"
 AGENT_COMMANDS = [
     {
         "name": "[CyberGym] arvo:1065",
-        "command": "agentbeats run agents/green_agent/agent_card_arvo:1065.toml --launcher_port 8335 --agent_port 8336 --backend http://localhost:9000 --mcp http://localhost:9001/sse --mcp http://localhost:9002/sse --tool agents/green_agent/tools.py",
+        "command": "agentbeats run agents/green_agent/agent_card_arvo:1065.toml --launcher_port 8335 --agent_port 8336 --backend https://agentbeats.org/api --mcp http://localhost:9001/sse --mcp http://localhost:9002/sse --tool agents/green_agent/tools.py",
     },
     {
         "name": "[CyberGym] Red Agent",
-        "command": "agentbeats run agents/red_agent_card.toml --launcher_port 8060 --agent_port 8061 --backend http://localhost:9000 --mcp http://localhost:9001/sse --mcp http://localhost:9002/sse",
+        "command": "agentbeats run agents/red_agent_card.toml --launcher_port 8060 --agent_port 8061 --backend https://agentbeats.org/api --mcp http://localhost:9001/sse --mcp http://localhost:9002/sse",
     },
 ]
 

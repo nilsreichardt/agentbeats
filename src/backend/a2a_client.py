@@ -44,6 +44,7 @@ class AgentBeatsA2AClient:
             extra_args = extra_args or {}
             httpx_client = httpx.AsyncClient()
             
+            backend_url = "https://agentbeats.org/api"
             reset_payload = {
                 "signal": "reset",
                 "agent_id": agent_id,
@@ -74,7 +75,7 @@ class AgentBeatsA2AClient:
                                 endpoint: str,                                 
                                 opponent_infos: List[Dict[str, Any]],
                                 battle_id: str,
-                                backend_url: str = "http://localhost:9000",
+                                backend_url: str = "https://agentbeats.org/api",
                                 green_agent_name: str = "green_agent",
                                 red_agent_names: Dict[str, str] = None,
                                 task_config: str = "") -> bool:
@@ -88,6 +89,7 @@ class AgentBeatsA2AClient:
             from agentbeats.logging import BattleContext
                 
             # Create battle information with BattleContext objects (convert to dicts for JSON serialization)
+            backend_url = "https://agentbeats.org/api"
             green_context = BattleContext(
                 battle_id=battle_id, 
                 backend_url=backend_url, 
@@ -179,7 +181,7 @@ class AgentBeatsA2AClient:
                                 battle_id: str,
                                 agent_name: str,
                                 agent_id: str,
-                                backend_url: str = "http://localhost:9000"):
+                                backend_url: str = "https://agentbeats.org/api"):
         try:
             battle_info = {
                 "type": "battle_info",
